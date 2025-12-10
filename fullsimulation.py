@@ -1,0 +1,155 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from time import time as t
+from indicators import Indicators
+
+class Market:
+    def __init__(self, n = 120960, dt=1/(365*24*60), S0=180, volatility=0.14, min_drift=-0.11, max_drift=0.11, jump_min=0.005, jump_max=0.01, jump_prob=0.0000006, ema_short = 9, ema_long = 26):
+        self.n = n
+        self.dt = dt
+        self.S0 = S0
+        self.volatility = volatility
+        self.min_drift = min_drift
+        self.max_drift = max_drift
+        self.jump_min = jump_min
+        self.jump_max = jump_max
+        self.jump_prob = jump_prob
+        self.mu = np.random.uniform(self.min_drift, self.max_drift)
+        self.returns = (self.mu - 0.5 * self.volatility**2) * self.dt + self.volatility * np.sqrt(self.dt) * np.random.randn(self.n)
+        self.jumps = np.zeros(self.n)
+        self.jump_events = np.random.rand(self.n) < self.jump_prob
+        self.jumps[self.jump_events] = np.random.uniform(-self.jump_max, self.jump_max, size=self.jump_events.sum())
+        self.total_returns = self.returns + self.jumps
+        self.prices = S0 * np.exp(np.cumsum(self.total_returns))
+        self.i = Indicators(self.prices)
+
+    def plot(self):
+        plt.figure(figsize=(14, 5))
+        plt.plot(self.prices)
+        plt.title('Simulation de marché avec mouvement brownien géométrique + jumps')
+        plt.xlabel('Bougie')
+        plt.ylabel('Prix ($)')
+        plt.grid(True)
+        plt.show()
+
+class OrderBook:
+    def __init__(self, max_orders=100_000):
+        self.max_orders = max_orders
+        self.orders_dtype = np.dtype([
+            ('is_buy', np.bool_),
+            ('size', np.float32),
+            ('id', np.int32),
+            ('price', np.float32),
+            ('active', np.bool_) ])
+        self.orders = np.zeros(max_orders, dtype=self.orders_dtype)
+        self.orders_count = 0
+        self.free_ids = []
+
+    def order(self, is_buy: bool, size: float, price: float) -> int:
+        if self.free_ids:
+            idx = self.free_ids.pop()
+        elif self.orders_count < self.max_orders:
+            idx = self.orders_count
+            self.orders_count += 1
+        else:
+            raise RuntimeError("Carnet saturé : pas assez de slots dispo")
+        self.orders[idx] = (is_buy, size, idx, price, True)
+        return idx
+
+    def bulk_remove(self, ids):
+        self.orders['active'][ids] = False
+        self.free_ids.extend(ids)
+
+    def get_active_orders(self):
+        active_mask = self.orders['active']
+        return self.orders[active_mask]
+
+    def __len__(self):
+        return np.sum(self.orders['active'])
+
+class Portfolio:
+    def __init__(self, capital, fees_limit = 0.0004, fees_market = 0.0007, max_orders=100_000, min_order=10):
+        self.capital = capital
+        self.usd = capital
+        self.coin = 0
+        self.busd = 0 # bothered usd
+        self.bcoin = 0 # bothered coin
+        self.orderbook = OrderBook(max_orders)
+        self.min_order = min_order
+        self.fees_limit = fees_limit
+        self.fees_market = fees_market
+        self.volume = 0
+
+    def limit_order(self, is_buy: bool, size: float, price: float) -> int:
+        size_usd = size * price
+        if (size_usd > self.min_order):
+            if is_buy:
+                if (size_usd < (self.usd - self.busd)):
+                    id = self.orderbook.order(is_buy, size, price)
+                    self.busd += size_usd
+                    return id
+            else:
+                if (size < (self.coin - self.bcoin)):
+                    id = self.orderbook.order(is_buy, size, price)
+                    self.bcoin += size
+                    return id
+
+    def fill(self, order_id: int):
+        order = self.orderbook.orders[order_id]
+        if not order['active']:
+            return
+        order['active'] = False
+        self.orderbook.free_ids.append(order_id)
+        size_usd = order['size'] * order['price']
+        fee = size_usd * self.fees_limit
+        if order['is_buy']:
+            self.usd -= size_usd + fee
+            self.coin += order['size']
+            self.busd -= size_usd
+        else:
+            self.usd += size_usd - fee
+            self.coin -= order['size']
+            self.bcoin -= order['size']
+        self.volume += size_usd
+
+    def value(self, price):
+        return self.usd + (self.coin * price)
+
+class Tester:
+    def __init__(self, pf):
+        self.portfolio = Portfolio(pf)
+        self.market = Market()
+
+    def fill_clear(self, min, max, spread_max):
+        mid = (min + max) / 2
+        limit_min = mid * ( 1 - (spread_max / 2))
+        limit_max = mid * ( 1 + (spread_max / 2))
+        to_cancel = []
+        for i in range(self.portfolio.orderbook.orders_count):
+            order = self.portfolio.orderbook.orders[i]
+            if order["active"]:
+                if order["is_buy"]:
+                    if order["price"] > min:
+                        self.portfolio.fill(order["id"])
+                    elif order["price"] < limit_min:
+                        to_cancel.append(order["id"])
+                else:
+                    if order["price"] < max:
+                        self.portfolio.fill(order["id"])
+                    elif order["price"] > limit_max:
+                        to_cancel.append(order["id"])
+        self.portfolio.orderbook.bulk_remove(to_cancel)
+
+    def simple_mm(self, spread):
+        for price in self.market.prices:
+            self.fill_clear(price, price, spread * 4)
+            self.portfolio.limit_order(False, 0.1, price * ( 1 + (spread/2)))
+            self.portfolio.limit_order(True, 0.1, price * ( 1 - (spread/2)))
+
+t1 = t()
+for _ in range(1):
+    te = Tester(10000)
+    te.simple_mm(0.002)
+print(t() - t1)
+
+print(round(t.portfolio.value(t.market.prices[-1]), 2), round(t.portfolio.volume, 2 ))
