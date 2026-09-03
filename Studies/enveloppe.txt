@@ -1,0 +1,24 @@
+W le skew, T la valeur notionnelle disponible du cote, S le spread, n le nb d'ordres, a le facteur de variation au sein du prix alpha, M le centre, T le portfolio dispo
+on pose b = W^{\frac{1}{n-1}}
+a un niveau i on a:
+Pxi = M\left(\left(S-1\right)\frac{a^{i}-1}{a^{n-1}-1}+1\right)
+Szi = Sz0b^i
+
+t = \frac{1-b^{n}}{1-b}
+p = \frac{1-\left(ba\right)^{n}}{1-ba}
+d = \frac{S-1}{a^{n-1}-1}
+
+donc
+Sz0 = \frac{T}{M\left(t\left(1-d\right)+dp\right)}
+
+formule barycentre un coté:
+G = \frac{M}{t}\left(t\left(1-d\right)+dp\right)
+cas limite a n -> inf
+    pour a > 1: G -> M
+    pour a = 1: G -> M\left(1+\left(S-1\right)\frac{W\left(\ln \left(W\right)-1\right)+1}{\left(W-1\right)\ln \left(W\right)}\right)
+    pour a < 1: G -> MS
+
+delta ecart entre G et MS en % (tres risqué vers 0%, safe par rapport a S vers 100%):
+D = 100\frac{G-M}{M\left(S-1\right)}
+
+
