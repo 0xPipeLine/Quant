@@ -1,0 +1,2 @@
+- interets composées sur indices mondiaux avec compound des dividends (10.5% anualisé) pour x années avec inflation de salaire de 6% pour un investissement annuel de p la premiere année
+f\left(x\right)=p\frac{1.105^{x}\left(1-0.959^{\left(x+1\right)}\right)}{0.041}
