@@ -1,0 +1,1 @@
+gcc orchestre.c bougie/candles.c indicateur/smma.c strategie/strat_enveloppes.c -o orchestre++++
