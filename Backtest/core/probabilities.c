@@ -12,7 +12,7 @@
  *      PRECEDENT, le fill est teste sur le snapshot courant ;
  *   3. les episodes non resolus a l'horizon sont comptes (p_timeout).
  *
- *   bin/probas Data/l2/US500.l2 --tau 300 --nd 40 --dmin 0.0002 --dmax 0.01 \
+ *   bin/probas data/extracted/US500.l2 --tau 300 --nd 40 --dmin 0.0002 --dmax 0.01 \
  *              --horizon 3600 --out study.csv [--dump episodes.csv] [--sma]
  */
 #include <stdio.h>

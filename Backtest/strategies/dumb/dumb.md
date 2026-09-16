@@ -23,7 +23,7 @@ modify ; ici le moteur voit un prix différent et fait cancel/replace.
 ## Commande complète
 
 ```sh
-bin/backtest Data/l2/US500.l2 --strategy dumb --reverse 0 \
+bin/backtest data/extracted/US500.l2 --strategy dumb --reverse 0 \
     --gamma 2 --cap 0.90 --min-value 10.5 \
     --tau 300 --poll 10.1 --threshold 0.0001 --fill through \
     --maker 0.00003 --taker 0.00009 --lev 1 --initial 1000 \

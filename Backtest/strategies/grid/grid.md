@@ -16,7 +16,7 @@ d'un coup. Le régime permanent est le même.
 ## Commande complète
 
 ```sh
-bin/backtest Data/l2/US500.l2 --strategy grid --reverse 0 \
+bin/backtest data/extracted/US500.l2 --strategy grid --reverse 0 \
     --levels 24 --value 100.5 --delta 2.0 --gap 0.6 \
     --cap 0.80 --min-value 10.5 \
     --tau 300 --poll 10.1 --threshold 0.0001 --fill through \

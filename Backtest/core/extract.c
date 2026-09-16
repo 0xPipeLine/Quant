@@ -1,6 +1,6 @@
 /* extract.c — *.json.gz  ->  book.l2
  *
- *   bin/extract Data/raw/US500 Data/l2/US500.l2 [--jobs N] [--market NOM]
+ *   bin/extract Data/raw/US500 data/extracted/US500.l2 [--jobs N] [--market NOM]
  *
  * Pourquoi c'est rapide :
  *   - parseur JSON dedie au schema ;

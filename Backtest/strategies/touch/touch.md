@@ -24,7 +24,7 @@ chaque snapshot.
 ## Commande complète
 
 ```sh
-bin/backtest Data/l2/US500.l2 --strategy touch --reverse 0 \
+bin/backtest data/extracted/US500.l2 --strategy touch --reverse 0 \
     --layers 3 --tick 0.1 --value 50 --cap 0.90 --min-value 10.5 \
     --max-inv 0.5 --lean 0 \
     --tau 300 --poll 10.1 --threshold 0 --fill through \

@@ -27,7 +27,7 @@ très sensible à `gamma`.
 ## Commande complète
 
 ```sh
-bin/backtest Data/l2/US500.l2 --strategy stoikov --reverse 0 \
+bin/backtest data/extracted/US500.l2 --strategy stoikov --reverse 0 \
     --gamma 100 --k 1000 --horizon 300 --value 50 --layers 2 --step 1 \
     --min-spread 2 --max-spread 30 --cap 0.90 --min-value 10.5 \
     --tau 300 --poll 10.1 --threshold 0.0001 --fill through \

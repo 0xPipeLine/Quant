@@ -1,6 +1,6 @@
 /* backtest.c — lance un backtest.
  *
- *   bin/backtest Data/l2/US500.l2 --strategy envelope --tau 300 --reverse 0 \
+ *   bin/backtest data/extracted/US500.l2 --strategy envelope --tau 300 --reverse 0 \
  *                --levels 24 --spread 0.005 ... --from 2026-08-21 --to -1d
  *
  * Ce fichier ne connait aucune strategie : les options qu'il ne reconnait

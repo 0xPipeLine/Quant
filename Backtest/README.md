@@ -39,11 +39,11 @@ Pourquoi ces choix :
   ils ne se versionnent pas et se régénèrent en une commande. Les mélanger aux
   sources oblige à des règles de `.gitignore` par extension et rend le
   `make clean` fragile. Un dossier = une règle.
-- **`Data/raw/` et `Data/l2/`** : les json.gz existants vont dans `Data/raw/`
+- **`Data/raw/` et `data/extracted/`** : les json.gz existants vont dans `Data/raw/`
   (un sous-dossier par marché, `bin/extract` parcourt récursivement). Les `.l2`
-  vont dans `Data/l2/`, nommés par marché. Tout `Data/` est ignoré par git :
+  vont dans `data/extracted/`, nommés par marché. Tout `Data/` est ignoré par git :
   les `.l2` pèsent des Go. Si tu préfères ne pas déplacer les json.gz, laisse-les
-  où ils sont et crée seulement `Data/l2/` — rien dans le code ne dépend du
+  où ils sont et crée seulement `data/extracted/` — rien dans le code ne dépend du
   chemin.
 - **une stratégie = un fichier** : `backtest.c` ne connaît aucune stratégie.
   Il délègue le parsing des options au `StratDef` choisi. Ajouter une stratégie
@@ -67,19 +67,19 @@ de ~1 Go, et le header le signale à la compilation.
 
 ```sh
 # 1. json.gz -> .l2   (une fois par marché ; --jobs N si compilé avec OMP=1)
-bin/extract Data/raw/US500 Data/l2/US500.l2 --market mkts:US500 --jobs 8
+bin/extract Data/raw/US500 data/extracted/US500.l2 --market mkts:US500 --jobs 8
 
 # 2. vérifier ce que le moteur voit : période, cadence, trous, anomalies
-bin/info Data/l2/US500.l2 --gaps 20
+bin/info data/extracted/US500.l2 --gaps 20
 
 # 3. étude de marché sans stratégie : proba de fill / retour à D% de l'EMA
-bin/probas Data/l2/US500.l2 --tau 300 --nd 40 --dmin 0.0002 --dmax 0.01 \
+bin/probas data/extracted/US500.l2 --tau 300 --nd 40 --dmin 0.0002 --dmax 0.01 \
            --horizon 3600 --out study.csv
 
 # 4. backtest
 bin/backtest --list                          # stratégies disponibles
 bin/backtest --help envelope                 # options d'une stratégie
-bin/backtest Data/l2/US500.l2 --strategy envelope --tau 300 \
+bin/backtest data/extracted/US500.l2 --strategy envelope --tau 300 \
              --levels 24 --spread 0.005 --skew 2 --inv 1 \
              --from 2026-08-21 --to -1d --equity equity.csv
 ```

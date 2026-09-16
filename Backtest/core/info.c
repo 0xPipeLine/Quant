@@ -1,7 +1,7 @@
 /* info.c — inspection d'un fichier .l2. A lancer en premier quand quelque
  * chose ne va pas : dit ce que le moteur voit reellement du fichier.
  *
- *   bin/info Data/l2/US500.l2 [--gaps 20] [--from B] [--to B]
+ *   bin/info data/extracted/US500.l2 [--gaps 20] [--from B] [--to B]
  */
 #include <stdio.h>
 #include <stdlib.h>
