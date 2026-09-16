@@ -23,7 +23,7 @@ seul le côté du retour à la moyenne est coté.
 ## Commande complète
 
 ```sh
-bin/backtest data/extracted/US500.l2 --strategy volband --reverse 0 \
+bin/backtest data/extracted/mkts-US500.l2 --strategy volband --reverse 0 \
     --levels 12 --k1 0.5 --k2 3.0 --horizon 300 --value 50 --min-band 2 \
     --cap 0.85 --min-value 10.5 --inv 1 \
     --tau 300 --poll 10.1 --threshold 0.0001 --fill through \

@@ -1,6 +1,6 @@
 bin/
 build/
-Data/
+data/
 *.csv
 *.o
 *.exe

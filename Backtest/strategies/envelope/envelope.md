@@ -24,7 +24,7 @@ partage, TP et échelle vendraient la même position et on serait short du doubl
 ## Commande complète
 
 ```sh
-bin/backtest data/extracted/US500.l2 --strategy envelope --reverse 0 \
+bin/backtest data/extracted/mkts-US500.l2 --strategy envelope --reverse 0 \
     --levels 24 --spread 0.005 --offset 0.0001 --alpha 1 --skew 2 \
     --cap 0.85 --min-value 10.5 --inv 1 --tp 0 --tp-spread 0.01 \
     --tau 300 --poll 10.1 --threshold 0.0001 --fill through \

@@ -1,6 +1,6 @@
 /* extract.c — *.json.gz  ->  book.l2
  *
- *   bin/extract Data/raw/US500 data/extracted/US500.l2 [--jobs N] [--market NOM]
+ *   bin/extract data/raw/mkts-US500 data/extracted/mkts-mkts-US500.l2 [--jobs N] [--market NOM]
  *
  * Pourquoi c'est rapide :
  *   - parseur JSON dedie au schema ;
@@ -246,7 +246,7 @@ int main(int argc, char **argv)
                 argv[0]);
         return 1;
     }
-    const char *root = argv[1], *out_path = argv[2], *market = "mkts:US500";
+    const char *root = argv[1], *out_path = argv[2], *market = "mkts:mkts-US500";
     int jobs = 0;
     for (int i = 3; i < argc; i++) {
         if      (!strcmp(argv[i], "--jobs")   && i + 1 < argc) jobs = atoi(argv[++i]);

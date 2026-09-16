@@ -28,7 +28,7 @@ chaque stratégie a sa fiche dans [`strategies/`](strategies/).
 │   └── ...
 ├── bin/                   exécutables (générés, non versionnés)
 ├── build/                 objets (générés, non versionnés)
-└── Data/
+└── data/
     ├── raw/<MARCHE>/      les json.gz bruts, un sous-dossier par marché
     └── l2/<MARCHE>.l2     les fichiers convertis, un par marché
 ```
@@ -39,9 +39,9 @@ Pourquoi ces choix :
   ils ne se versionnent pas et se régénèrent en une commande. Les mélanger aux
   sources oblige à des règles de `.gitignore` par extension et rend le
   `make clean` fragile. Un dossier = une règle.
-- **`Data/raw/` et `data/extracted/`** : les json.gz existants vont dans `Data/raw/`
+- **`data/raw/` et `data/extracted/`** : les json.gz existants vont dans `data/raw/`
   (un sous-dossier par marché, `bin/extract` parcourt récursivement). Les `.l2`
-  vont dans `data/extracted/`, nommés par marché. Tout `Data/` est ignoré par git :
+  vont dans `data/extracted/`, nommés par marché. Tout `data/` est ignoré par git :
   les `.l2` pèsent des Go. Si tu préfères ne pas déplacer les json.gz, laisse-les
   où ils sont et crée seulement `data/extracted/` — rien dans le code ne dépend du
   chemin.
@@ -67,42 +67,42 @@ de ~1 Go, et le header le signale à la compilation.
 
 ```sh
 # 1. json.gz -> .l2   (une fois par marché ; --jobs N si compilé avec OMP=1)
-bin/extract Data/raw/US500 data/extracted/US500.l2 --market mkts:US500 --jobs 8
+bin/extract data/raw/mkts-US500 data/extracted/mkts-US500.l2 --market mkts:mkts-US500 --jobs 8
 
 # 2. vérifier ce que le moteur voit : période, cadence, trous, anomalies
-bin/info data/extracted/US500.l2 --gaps 20
+bin/info data/extracted/mkts-US500.l2 --gaps 20
 
 # 3. étude de marché sans stratégie : proba de fill / retour à D% de l'EMA
-bin/probas data/extracted/US500.l2 --tau 300 --nd 40 --dmin 0.0002 --dmax 0.01 \
+bin/probas data/extracted/mkts-US500.l2 --tau 300 --nd 40 --dmin 0.0002 --dmax 0.01 \
            --horizon 3600 --out study.csv
 
 # 4. backtest
 bin/backtest --list                          # stratégies disponibles
 bin/backtest --help envelope                 # options d'une stratégie
-bin/backtest data/extracted/US500.l2 --strategy envelope --tau 300 \
+bin/backtest data/extracted/mkts-US500.l2 --strategy envelope --tau 300 \
              --levels 24 --spread 0.005 --skew 2 --inv 1 \
              --from 2026-08-21 --to -1d --equity equity.csv
 ```
 
 ## Options du moteur (communes à toutes les stratégies)
 
-| option | défaut | rôle |
-|---|---|---|
-| `--strategy NOM` | envelope | voir `--list` |
-| `--reverse 0\|1` | 0 | 1 : chaque fill maker est remplacé par un **taker de même taille dans l'autre sens** (voir `core/README.md`) |
-| `--tau S` | 300 | EMA continue, constante de temps en secondes |
-| `--timeframe S --window N` | — | EMA "bougie" comme le bot live (`--wilder` : alpha=1/N, `--staircase` : sans mélange au mid) |
-| `--fill through\|touch` | through | modèle de fill : through = le prix doit traverser (conservateur) |
-| `--maker F` / `--taker F` | 0.00003 / 0.00009 | frais |
-| `--lev F` | 1 | levier ; `--mmr F` marge de maintenance (défaut 0.5/lev) |
-| `--initial $` | 1000 | capital |
-| `--poll S` | 10.1 | délai min entre deux re-quotes |
-| `--threshold F` | 0.0001 | re-quote seulement si l'EMA a bougé de plus de F (ou après un fill). **Mettre 0 pour `touch`** |
-| `--lat MS` | 0 | latence avant qu'un ordre posé soit actif |
-| `--warmup S` | 5·tau | pas de trading avant (convergence de l'EMA) |
-| `--max-jump F` | 0.10 | saut de mid jugé aberrant entre deux snapshots proches ; 0 = off |
-| `--equity FILE` | — | courbe d'equity en CSV (une ligne par minute) |
-| `--from B --to B` | bords | zone : `2026-08-21`, `2026-08-21T16:30`, `-3d`, `-12h`, `40%`, `#250000` |
+| option                        | défaut           | rôle                                                                                                                 |
+| ----------------------------- | ----------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `--strategy NOM`            | envelope          | voir`--list`                                                                                                        |
+| `--reverse 0\|1`             | 0                 | 1 : chaque fill maker est remplacé par un**taker de même taille dans l'autre sens** (voir `core/README.md`) |
+| `--tau S`                   | 300               | EMA continue, constante de temps en secondes                                                                          |
+| `--timeframe S --window N`  | —                | EMA "bougie" comme le bot live (`--wilder` : alpha=1/N, `--staircase` : sans mélange au mid)                     |
+| `--fill through\|touch`      | through           | modèle de fill : through = le prix doit traverser (conservateur)                                                     |
+| `--maker F` / `--taker F` | 0.00003 / 0.00009 | frais                                                                                                                 |
+| `--lev F`                   | 1                 | levier ;`--mmr F` marge de maintenance (défaut 0.5/lev)                                                            |
+| `--initial $`               | 1000              | capital                                                                                                               |
+| `--poll S`                  | 10.1              | délai min entre deux re-quotes                                                                                       |
+| `--threshold F`             | 0.0001            | re-quote seulement si l'EMA a bougé de plus de F (ou après un fill).**Mettre 0 pour `touch`**               |
+| `--lat MS`                  | 0                 | latence avant qu'un ordre posé soit actif                                                                            |
+| `--warmup S`                | 5·tau            | pas de trading avant (convergence de l'EMA)                                                                           |
+| `--max-jump F`              | 0.10              | saut de mid jugé aberrant entre deux snapshots proches ; 0 = off                                                     |
+| `--equity FILE`             | —                | courbe d'equity en CSV (une ligne par minute)                                                                         |
+| `--from B --to B`           | bords             | zone :`2026-08-21`, `2026-08-21T16:30`, `-3d`, `-12h`, `40%`, `#250000`                                   |
 
 Toute option non reconnue par le moteur est transmise à la stratégie ; une
 option inconnue des deux fait échouer le run avec la liste des options valides.

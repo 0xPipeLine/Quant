@@ -24,7 +24,7 @@ Lecture en Python :
 import numpy as np
 dt = np.dtype([('ts','<i8'),('height','<i8'),('bid_px','<f8',20),('bid_sz','<f8',20),
                ('ask_px','<f8',20),('ask_sz','<f8',20)])
-snaps = np.memmap('data/extracted/US500.l2', dtype=dt, mode='r', offset=64)
+snaps = np.memmap('data/extracted/mkts-US500.l2', dtype=dt, mode='r', offset=64)
 ```
 
 ## 2. Lecture — `book.c`
