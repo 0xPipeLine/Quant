@@ -1,15 +1,12 @@
-/* extract.c — *.json.gz  ->  book.l2   (remplace l2_convert.py)
+/* extract.c — *.json.gz  ->  book.l2
  *
- *   ./extract <dossier_racine> book.l2 [--jobs N] [--market NOM]
+ *   bin/extract Data/raw/US500 Data/l2/US500.l2 [--jobs N] [--market NOM]
  *
  * Pourquoi c'est rapide :
- *   - parseur JSON dedie au schema (pas de parseur generique) : on ne cherche
- *     que les cles connues, dans l'ordre connu ;
+ *   - parseur JSON dedie au schema ;
  *   - conversion decimale maison, pas de strtod ;
- *   - zero allocation par snapshot : on ecrit directement dans un buffer de
- *     Snap qui est deja le format final sur disque ;
- *   - decompression et parsing des fichiers en parallele (OpenMP), l'ecriture
- *     restant sequentielle pour garder l'ordre chronologique exact.
+ *   - zero allocation par snapshot ;
+ *   - decompression et parsing en parallele (OpenMP), ecriture sequentielle.
  *
  * Compilation : necessite zlib (-lz).
  *   MSYS2/MinGW : pacman -S mingw-w64-x86_64-zlib
@@ -41,8 +38,6 @@ static void paths_add(Paths *p, const char *s)
     p->v[p->n++] = strdup(s);
 }
 
-/* prefixe numerique du nom de fichier : les hauteurs sont croissantes,
- * donc trier la-dessus donne l'ordre chronologique */
 static unsigned long long base_num(const char *path)
 {
     const char *b = path;
@@ -85,7 +80,6 @@ static void walk(const char *dir, Paths *out)
 
 static const double P10[] = { 1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8 };
 
-/* "260.652" -> 260.652, sans strtod. Exact tant qu'il y a <= 8 decimales. */
 static double dec(const char *s)
 {
     int neg = 0;
@@ -111,7 +105,6 @@ static int64_t days_from_civil(int y, int m, int d)
     return era * 146097 + (int64_t)doe - 719468;
 }
 
-/* "2026-08-21T16:46:53.131928649" (UTC) -> nanosecondes epoch */
 static int64_t parse_ts(const char *s)
 {
     int Y = atoi(s), M = atoi(s + 5), D = atoi(s + 8);
@@ -129,22 +122,14 @@ static int64_t parse_ts(const char *s)
 
 /* ==================== 3. Parsing d'un fichier ==================== */
 
-/* Recherche BORNEE. Indispensable : un strstr qui echoue balaie tout le reste
- * du fichier, et repete par enregistrement ca donne un comportement en O(n^2)
- * — c'est ce qui rendait l'extraction plus lente que la version Python. */
 static const char *find_in(const char *p, const char *end, const char *key)
 {
     if (!p) return NULL;
     size_t k = strlen(key);
-    /* Les cles commencent toutes par un guillemet, et du JSON en contient un
-     * tous les dix octets : chercher key[0] fait echouer memchr en permanence.
-     * On cherche key[1] — 'h' de "height", 'p' de "px" — bien plus rare, et on
-     * verifie un cran en arriere. Sur nos fichiers ca divise le temps de
-     * parsing par ~4. */
     if (k < 2) return NULL;
     char anchor = key[1];
     const char *lim = end - k;
-    p++;                                  /* on vise l'octet apres le guillemet */
+    p++;
     while (p <= lim + 1) {
         const char *q = memchr(p, anchor, (size_t)(lim + 1 - p) + 1);
         if (!q) return NULL;
@@ -156,8 +141,6 @@ static const char *find_in(const char *p, const char *end, const char *key)
 
 static int is_ws(char c) { return c == ' ' || c == '\t' || c == '\n' || c == '\r'; }
 
-/* Trouve "cle" puis se place sur la valeur, en tolerant les espaces et le
- * guillemet ouvrant : "px":"766.0" comme "px" : "766.0" ou "px": 766.0 */
 static const char *value_of(const char *p, const char *end, const char *key)
 {
     const char *q = find_in(p, end, key);
@@ -169,7 +152,6 @@ static const char *value_of(const char *p, const char *end, const char *key)
     return q < end ? q : NULL;
 }
 
-/* remplit px[]/sz[] depuis [ {"px":"..","sz":"..","n":N}, ... ] */
 static int parse_side(const char *p, const char *end, double *px, double *sz)
 {
     int i;
@@ -183,12 +165,9 @@ static int parse_side(const char *p, const char *end, double *px, double *sz)
         sz[i] = dec(b);
         p = b;
     }
-    return i;                       /* nb de niveaux effectivement lus */
+    return i;
 }
 
-/* Decompresse et parse un fichier. Renvoie un tableau alloue, *n = sa taille.
- * `sample` recoit le texte brut du premier enregistrement, pour pouvoir le
- * montrer si quelque chose cloche. */
 static Snap *parse_file(const char *path, size_t *n_out, char *sample,
                         size_t sample_sz, int verbose)
 {
@@ -209,7 +188,6 @@ static Snap *parse_file(const char *path, size_t *n_out, char *sample,
     buf[len] = '\0';
     const char *bend = buf + len;
 
-    /* majorant : une occurrence de "height" par snapshot */
     size_t max = 1;
     for (const char *p = buf; (p = find_in(p, bend, "\"height\"")); ) max++;
     Snap *out = malloc(max * sizeof(Snap));
@@ -218,9 +196,9 @@ static Snap *parse_file(const char *path, size_t *n_out, char *sample,
     const char *cur = buf;
     const char *rec = find_in(cur, bend, "\"height\"");
     while (rec) {
-        const char *rstart = rec - 8;                 /* debut de "height" */
+        const char *rstart = rec - 8;
         const char *nxt  = find_in(rec, bend, "\"height\"");
-        const char *rend = nxt ? nxt - 8 : bend;      /* borne de l'enregistrement */
+        const char *rend = nxt ? nxt - 8 : bend;
         Snap *s = &out[n];
 
         const char *h  = value_of(rstart, rend, "\"height\"");
@@ -230,7 +208,7 @@ static Snap *parse_file(const char *path, size_t *n_out, char *sample,
         rec = nxt;
         if (!h || !bt || !bs || !as) continue;
 
-        if (!n && sample && sample_sz) {          /* garde un echantillon brut */
+        if (!n && sample && sample_sz) {
             size_t L = (size_t)(rend - rstart);
             if (L > sample_sz - 1) L = sample_sz - 1;
             memcpy(sample, rstart, L);
@@ -243,10 +221,6 @@ static Snap *parse_file(const char *path, size_t *n_out, char *sample,
         if (!be || !ae) continue;
         int nb = parse_side(bs, be, s->bid_px, s->bid_sz);
         int na = parse_side(as, ae, s->ask_px, s->ask_sz);
-        /* Un tableau "bids":[] est un carnet vide : c'est normal avant que le
-         * marche ne cote. En revanche des niveaux presents mais illisibles
-         * signalent un vrai probleme de format : on le marque par -1 pour que
-         * l'appelant puisse crier au lieu de compter en silence. */
         if (!nb && memchr(bs, '{', (size_t)(be - bs))) s->bid_px[0] = -1.0;
         if (!na && memchr(as, '{', (size_t)(ae - as))) s->ask_px[0] = -1.0;
         n++;
@@ -300,11 +274,9 @@ int main(int argc, char **argv)
     if (!out) { perror(out_path); return 1; }
     L2Header h;
     memset(&h, 0, sizeof h);
-    fwrite(&h, sizeof h, 1, out);          /* en-tete reecrit a la fin */
+    fwrite(&h, sizeof h, 1, out);
     setvbuf(out, NULL, _IOFBF, 1 << 22);
 
-    /* On traite les fichiers par lots : decompression/parsing en parallele,
-     * puis validation + ecriture en sequentiel pour garder l'ordre. */
     enum { BATCH = 64 };
     Snap   *part[BATCH];
     size_t  cnt[BATCH];
@@ -313,7 +285,7 @@ int main(int argc, char **argv)
 
     clock_t  t_begin = clock();
     uint64_t n_rec = 0, dup = 0, bad = 0, empty = 0, crossed = 0, unreadable = 0;
-    uint64_t parsed = 0;                     /* enregistrements decoupes */
+    uint64_t parsed = 0;
     int64_t  last_h = -1, t_start = 0, t_end = 0, prev_ts = 0;
     double   gap_max = 0;
 
@@ -338,7 +310,7 @@ int main(int argc, char **argv)
                     bad++; unreadable++;
                     why = "niveaux presents mais cles px/sz illisibles";
                 } else if (s->bid_px[0] == 0 || s->ask_px[0] == 0) {
-                    empty++; bad++;   /* carnet vide : normal, on n'alerte pas */
+                    empty++; bad++;
                     continue;
                 } else if (s->ask_px[0] <= s->bid_px[0]) {
                     crossed++; bad++;
@@ -347,7 +319,7 @@ int main(int argc, char **argv)
                     dup++;
                     why = "hauteur non croissante : fichiers mal ordonnes ?";
                 }
-                if (why && !diagnosed) {        /* on explique le premier rejet */
+                if (why && !diagnosed) {
                     diagnosed = 1;
                     fprintf(stderr,
                         "\n---------------- premier enregistrement rejete ------------"
@@ -386,9 +358,6 @@ int main(int argc, char **argv)
                 (unsigned long long)n_rec, (unsigned long long)empty,
                 (unsigned long long)dup, el > 0 ? (base + m) / el : 0);
         }
-        /* On n'abandonne que si le format est vraiment illisible. Un debut de
-         * dataset entierement compose de carnets vides est normal : le marche
-         * ne cotait pas encore, il faut simplement avancer. */
         if (base + m >= 64 && (!parsed || unreadable)) {
             fprintf(stderr, "\nextract: format illisible apres %lu fichiers "
                             "(%llu enregistrements decoupes, %llu avec des "

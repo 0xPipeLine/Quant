@@ -1,7 +1,7 @@
 /* info.c — inspection d'un fichier .l2. A lancer en premier quand quelque
  * chose ne va pas : dit ce que le moteur voit reellement du fichier.
  *
- *   ./info book.l2 [--gaps 20]
+ *   bin/info Data/l2/US500.l2 [--gaps 20] [--from B] [--to B]
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,7 +13,7 @@ typedef struct { double sec; int64_t ts; } Gap;
 static int cmp_gap(const void *a, const void *b)
 {
     double x = ((const Gap *)a)->sec, y = ((const Gap *)b)->sec;
-    return x < y ? 1 : x > y ? -1 : 0;              /* decroissant */
+    return x < y ? 1 : x > y ? -1 : 0;
 }
 
 int main(int argc, char **argv)
@@ -36,7 +36,7 @@ int main(int argc, char **argv)
            (unsigned long)sizeof(Snap), LEVELS);
 
     Book b;
-    if (book_open_range(&b, argv[1], from, to)) return 1;  /* messages dedans */
+    if (book_open_range(&b, argv[1], from, to)) return 1;
 
     char d0[24], d1[24];
     l2_fmt_time(b.s[0].ts, d0, sizeof d0);
@@ -50,14 +50,12 @@ int main(int argc, char **argv)
     printf("cadence moyenne: %.3f s\n", b.n > 1 ? span / (double)(b.n - 1) : 0.0);
     printf("taille mappee  : %.2f Go\n", (double)b.n * sizeof(Snap) / 1e9);
 
-    /* premier et dernier carnet, pour verifier que les prix sont plausibles */
     const Snap *a = &b.s[0], *z = &b.s[b.n - 1];
     printf("premier carnet : bid %.4f x%.4f   ask %.4f x%.4f\n",
            a->bid_px[0], a->bid_sz[0], a->ask_px[0], a->ask_sz[0]);
     printf("dernier carnet : bid %.4f x%.4f   ask %.4f x%.4f\n",
            z->bid_px[0], z->bid_sz[0], z->ask_px[0], z->ask_sz[0]);
 
-    /* anomalies + trous */
     long bad = 0, back = 0, empty = 0;
     double lo = 1e300, hi = -1e300;
     int64_t t_lo = 0, t_hi = 0;
@@ -73,14 +71,14 @@ int main(int argc, char **argv)
         if (i) {
             int64_t d = s->ts - b.s[i - 1].ts;
             if (d < 0) back++;
-            else if (d > 60LL * 1000000000LL)       /* trou de plus d'une minute */
+            else if (d > 60LL * 1000000000LL)
                 { g[ng].sec = (double)d * 1e-9; g[ng].ts = b.s[i - 1].ts; ng++; }
         }
     }
-    { char a[24], z[24];
-      l2_fmt_time(t_lo, a, sizeof a); l2_fmt_time(t_hi, z, sizeof z);
-      printf("mid le plus bas: %.4f  le %s\n", lo, a);
-      printf("mid le + haut  : %.4f  le %s\n", hi, z); }
+    { char x[24], y[24];
+      l2_fmt_time(t_lo, x, sizeof x); l2_fmt_time(t_hi, y, sizeof y);
+      printf("mid le plus bas: %.4f  le %s\n", lo, x);
+      printf("mid le + haut  : %.4f  le %s\n", hi, y); }
     printf("anomalies      : %ld carnets vides, %ld croises, %ld timestamps "
            "en arriere\n", empty, bad, back);
 

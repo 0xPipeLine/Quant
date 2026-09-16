@@ -1,42 +1,68 @@
-# Fonctionne que les sources soient dans src/ + include/ ou toutes a plat.
-SRC := $(if $(wildcard src/engine.c),src/,)
-INC := $(if $(wildcard include/l2.h),include,.)
+# Makefile — moteur de backtest L2
+#
+#   make              -> bin/backtest bin/info bin/probas bin/extract
+#   make OMP=1        -> extract parallele (OpenMP)
+#   make DEBUG=1      -> -O0 -g, asserts actifs
+#   make clean
+#
+# Ajouter une strategie = deposer strategies/<nom>/<nom>.c (+ une ligne dans
+# registry.c). Le Makefile ramasse tout strategies/*/*.c automatiquement.
 
-CC     = gcc
-CFLAGS = -O2 -Wall -Wextra -I$(INC)
-LDLIBS = -lm
-CORE   = $(SRC)book.c $(SRC)indicators.c
+CC      ?= gcc
+CFLAGS  ?= -O2 -std=gnu11 -Wall -Wextra -Wno-unused-parameter
+CFLAGS  += -Icore -Istrategies
+LDLIBS   = -lm
 
-# L'extracteur est parallele par defaut (la decompression domine le temps).
-# make OMP=0  si ta chaine de compilation n'a pas OpenMP.
-OMP ?= 1
-ifneq ($(OMP),0)
-  OMPFLAGS = -fopenmp
+ifeq ($(DEBUG),1)
+  CFLAGS := $(filter-out -O2,$(CFLAGS)) -O0 -g
+else
+  CFLAGS += -DNDEBUG
+endif
+ifeq ($(OMP),1)
+  CFLAGS += -fopenmp
+  LDLIBS += -fopenmp
 endif
 
-# make STATIC=1 -> executables autonomes (aucune DLL a cote, pratique sous
-# Windows pour lancer les .exe depuis n'importe quel terminal)
-ifdef STATIC
-  LDFLAGS += -static
+# .exe sous MSYS2 / MinGW
+ifeq ($(OS),Windows_NT)
+  EXE := .exe
+else
+  EXE :=
 endif
 
-all: extract info backtest probas
+BIN   := bin
+BUILD := build
 
-extract:  $(SRC)extract.c
-	$(CC) $(CFLAGS) $(OMPFLAGS) -o $@ $^ -lz $(LDLIBS)
+CORE_SRC  := core/book.c core/indicators.c core/engine.c
+STRAT_SRC := strategies/registry.c $(wildcard strategies/*/*.c)
 
-info:     $(SRC)info.c $(CORE)
+CORE_OBJ  := $(patsubst %.c,$(BUILD)/%.o,$(CORE_SRC))
+STRAT_OBJ := $(patsubst %.c,$(BUILD)/%.o,$(STRAT_SRC))
+
+TARGETS := $(BIN)/backtest$(EXE) $(BIN)/info$(EXE) $(BIN)/probas$(EXE) $(BIN)/extract$(EXE)
+
+all: $(TARGETS)
+
+$(BIN)/backtest$(EXE): $(BUILD)/core/backtest.o $(CORE_OBJ) $(STRAT_OBJ) | $(BIN)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDLIBS)
 
-STRATS = $(SRC)strategy_envelope.c $(SRC)strategy_envelope_b.c $(SRC)strategy_grid.c
-
-backtest: $(SRC)backtest.c $(SRC)engine.c $(STRATS) $(CORE)
+$(BIN)/info$(EXE): $(BUILD)/core/info.o $(BUILD)/core/book.o | $(BIN)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDLIBS)
 
-probas:   $(SRC)probabilities.c $(CORE)
+$(BIN)/probas$(EXE): $(BUILD)/core/probabilities.o $(BUILD)/core/book.o $(BUILD)/core/indicators.o | $(BIN)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDLIBS)
+
+$(BIN)/extract$(EXE): $(BUILD)/core/extract.o | $(BIN)
+	$(CC) $(CFLAGS) -o $@ $^ $(LDLIBS) -lz
+
+$(BUILD)/%.o: %.c core/l2.h strategies/strategy.h
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+$(BIN):
+	@mkdir -p $(BIN)
 
 clean:
-	rm -f extract info backtest probas
+	rm -rf $(BUILD) $(TARGETS)
 
 .PHONY: all clean

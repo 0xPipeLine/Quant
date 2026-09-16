@@ -3,14 +3,12 @@
  * Le fichier n'est pas lu : il est mappe en memoire, `b->s` pointe dedans.
  * Aucune copie, aucune deserialisation.
  *
- * Point important sur les gros fichiers : book_open_range() ne mappe QUE la
- * zone demandee. Les bornes sont trouvees par quelques lectures de 8 octets
- * (recherche binaire sur les timestamps), et l'espace d'adressage consomme est
- * celui de la fenetre, pas celui du fichier. C'est indispensable en 32 bits,
- * ou mapper 1,9 Go d'un coup echoue systematiquement.
+ * book_open_range() ne mappe QUE la zone demandee. Les bornes sont trouvees
+ * par quelques lectures de 8 octets (recherche binaire sur les timestamps),
+ * et l'espace d'adressage consomme est celui de la fenetre, pas du fichier.
  *
  * Regle appliquee partout ici : aucun chemin d'erreur ne renvoie -1 sans dire
- * pourquoi. Un echec silencieux sur un gros fichier est impossible a diagnostiquer.
+ * pourquoi.
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -54,7 +52,6 @@ static int64_t file_size(const char *path)
     return n;
 }
 
-/* timestamp du snapshot i, lu directement dans le fichier (8 octets) */
 static int64_t ts_at(FILE *f, size_t i)
 {
     int64_t ts = 0;
@@ -113,7 +110,6 @@ void l2_fmt_time(int64_t ts, char *buf, size_t n)
 
 /* ==================== selection d'une zone ==================== */
 
-/* Une borne -> un index. `f` sert a la recherche binaire dans le fichier. */
 static long spec_index(const L2Header *h, FILE *f, size_t n,
                        const char *sp, int is_end)
 {
@@ -153,14 +149,14 @@ static long spec_index(const L2Header *h, FILE *f, size_t n,
         return -1;
     }
 
-    if (t < h->t_start || t > h->t_end) {                 /* hors du fichier */
+    if (t < h->t_start || t > h->t_end) {
         char a[24], z[24], w[24];
         l2_fmt_time(h->t_start, a, sizeof a);
         l2_fmt_time(h->t_end,   z, sizeof z);
         l2_fmt_time(t,          w, sizeof w);
         fprintf(stderr, "book: la borne '%s' (%s) est hors du fichier,\n"
                         "      qui couvre %s -> %s\n", sp, w, a, z);
-        if (t < h->t_start && !is_end) return 0;          /* on rabote */
+        if (t < h->t_start && !is_end) return 0;
         if (t > h->t_end   &&  is_end) return (long)n;
         return -1;
     }
@@ -173,7 +169,7 @@ static int map_window(Book *b, const char *path, size_t i0, size_t i1)
 {
     int64_t off   = (int64_t)sizeof(L2Header) + (int64_t)i0 * (int64_t)sizeof(Snap);
     int64_t gran  = (int64_t)map_granularity();
-    int64_t base  = off - (off % gran);                 /* debut alignable */
+    int64_t base  = off - (off % gran);
     size_t  delta = (size_t)(off - base);
     size_t  len   = delta + (i1 - i0) * sizeof(Snap);
 
@@ -226,7 +222,6 @@ static int map_window(Book *b, const char *path, size_t i0, size_t i1)
 
 /* ==================== ouverture ==================== */
 
-/* Lit et valide l'en-tete. Renvoie le nb de snapshots reellement exploitables. */
 static long read_header(const char *path, L2Header *h)
 {
     FILE *f = fopen(path, "rb");
@@ -282,7 +277,6 @@ int book_open_range(Book *b, const char *path, const char *from, const char *to)
     fclose(f);
 
     if (i0 < 0 || i1 < 0) return -1;
-    if (i0 < 0) i0 = 0;
     if (i1 > n) i1 = n;
     if (i0 >= i1) {
         fprintf(stderr, "book: zone vide — from=%s to=%s donne [%ld, %ld) "
@@ -322,7 +316,7 @@ size_t book_seek(const Book *b, int64_t ts)
 Book book_slice(const Book *b, size_t i0, size_t i1)
 {
     Book v;
-    memset(&v, 0, sizeof v);           /* map_ = NULL -> book_close inoffensif */
+    memset(&v, 0, sizeof v);
     if (i1 > b->n) i1 = b->n;
     if (i0 > i1)   i0 = i1;
     v.h  = b->h;
@@ -340,13 +334,36 @@ double snap_walk(const Snap *s, int side, double qty, double *filled)
     const double *sz = side > 0 ? s->ask_sz : s->bid_sz;
     double left = qty, notional = 0, done = 0;
     for (int i = 0; i < LEVELS && left > 0; i++) {
-        if (px[i] <= 0) break;                  /* niveau absent */
+        if (px[i] <= 0) break;
         double take = sz[i] < left ? sz[i] : left;
         notional += take * px[i];
         done += take; left -= take;
     }
     if (filled) *filled = done;
     return done > 0 ? notional / done : 0.0;
+}
+
+/* Convention du mode --reverse : on consomme les 20 niveaux, et ce qui reste
+ * est execute au prix du dernier niveau touche. Un carnet avec 2 + 1 + 3 pour
+ * une demande de 5 remplit 2, 1, 2 ; une demande de 8 remplit 2, 1, 3 puis 2
+ * de plus au prix du troisieme niveau. */
+double snap_walk_full(const Snap *s, int side, double qty)
+{
+    const double *px = side > 0 ? s->ask_px : s->bid_px;
+    const double *sz = side > 0 ? s->ask_sz : s->bid_sz;
+    double left = qty, notional = 0, last = 0;
+    for (int i = 0; i < LEVELS && left > 0; i++) {
+        if (px[i] <= 0) break;
+        double take = sz[i] < left ? sz[i] : left;
+        notional += take * px[i];
+        left -= take;
+        last = px[i];
+    }
+    if (left > 0) {
+        if (last <= 0) last = px[0];
+        notional += left * last;
+    }
+    return qty > 0 ? notional / qty : 0.0;
 }
 
 double snap_depth(const Snap *s, int side, double frac)

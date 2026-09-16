@@ -1,34 +1,19 @@
 /* probabilities.c — probabilites "fill a D% de la moyenne".
  *
- * Idee : on ne simule pas une strategie, on observe le marche. Pour chaque
- * distance D d'une grille logarithmique et pour chaque cote, on suit un ordre
- * passif pose en permanence a :
- *
- *      achat  ->  ref * (1 - D)          ref = EMA (ou SMA avec --sma)
- *      vente  ->  ref * (1 + D)
- *
- * Cycle de vie d'un episode :
+ * On ne simule pas une strategie, on observe le marche. Pour chaque distance
+ * D d'une grille logarithmique et pour chaque cote, on suit un ordre passif
+ * pose en permanence a ref*(1 -/+ D), ref = EMA (ou SMA avec --sma).
  *
  *      arme  --(fill)-->  ouvert  --(retour a la moyenne | stop | horizon)--> agrege
  *
- * Ce qui est mesure, par cote et par D : combien de fois par jour on est
- * rempli, avec quelle probabilite le prix revient ensuite a la moyenne, en
- * combien de temps, pour quel PnL, et jusqu'ou ca part contre nous entre-temps
- * (MAE) — c'est le MAE qui dit si une grille a assez de paliers pour encaisser.
+ * Trois precautions cablees :
+ *   1. un seul episode ouvert a la fois par (cote, D) ;
+ *   2. pas de look-ahead : le niveau vient de la moyenne du snapshot
+ *      PRECEDENT, le fill est teste sur le snapshot courant ;
+ *   3. les episodes non resolus a l'horizon sont comptes (p_timeout).
  *
- * Trois precautions cablees, sans lesquelles les chiffres sont faux tout en
- * ayant l'air precis :
- *
- *   1. un seul episode ouvert a la fois par (cote, D). Sinon 10 000
- *      "observations" ne sont que 40 evenements independants qui se recouvrent.
- *   2. pas de look-ahead : le niveau vient de la moyenne du snapshot PRECEDENT,
- *      le fill est teste sur le snapshot courant. Un decalage d'un pas suffit
- *      a transformer une strategie perdante en gagnante.
- *   3. les episodes non resolus a l'horizon sont comptes (p_timeout), pas
- *      jetes : ce sont justement les pires.
- *
- *   ./probas book.l2 --tau 300 --nd 40 --dmin 0.0002 --dmax 0.01 \
- *            --horizon 3600 --out study.csv [--dump episodes.csv] [--sma]
+ *   bin/probas Data/l2/US500.l2 --tau 300 --nd 40 --dmin 0.0002 --dmax 0.01 \
+ *              --horizon 3600 --out study.csv [--dump episodes.csv] [--sma]
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -37,10 +22,10 @@
 #include "l2.h"
 
 typedef struct {
-    double  d;                 /* distance a la moyenne, en fraction */
+    double  d;
     int     open;
     int64_t t0;
-    double  px0, mae, mfe;     /* prix de fill, pire et meilleure excursion */
+    double  px0, mae, mfe;
     long    n_ep, n_ret, n_stop, n_to;
     double  s_ttr, s_pnl, s_mae, s_mfe, s_ret_pnl;
 } Track;
@@ -54,8 +39,7 @@ static void close_ep(Track *t, int64_t ts, double pnl, int kind, FILE *d, int si
     else if (kind == 1)   t->n_stop++;
     else                  t->n_to++;
     if (d) fprintf(d, "%d,%.6f,%" PRId64 ",%.2f,%.4f,%.2f,%.2f,%.2f,%d\n",
-                   side, t->d, t->t0, ttr, t->px0, pnl,
-                   t->mae, t->mfe, kind);
+                   side, t->d, t->t0, ttr, t->px0, pnl, t->mae, t->mfe, kind);
     t->open = 0;
 }
 
@@ -101,12 +85,12 @@ int main(int argc, char **argv)
 
     Ctx c; ema_cfg_apply(&c, &ema, 60.0);
     ema_cfg_print(&ema, stderr);
-    double tau = c.ema.tau;              /* fenetre de la SMA : meme echelle */
+    double tau = c.ema.tau;
     Sma sma; sma_init(&sma, 1 << 20, tau);
 
     Track *buy  = calloc((size_t)nd, sizeof(Track));
     Track *sell = calloc((size_t)nd, sizeof(Track));
-    for (int j = 0; j < nd; j++)      /* grille log : lisible sur 2 decades */
+    for (int j = 0; j < nd; j++)
         buy[j].d = sell[j].d = nd > 1
                  ? dmin * pow(dmax / dmin, (double)j / (nd - 1)) : dmin;
 
@@ -114,7 +98,7 @@ int main(int argc, char **argv)
     if (dump) fprintf(dump, "side,d,t0_ns,ttr_s,px0,pnl_bps,mae_bps,mfe_bps,kind\n");
 
     int64_t hz   = (int64_t)(horizon * 1e9);
-    int64_t warm = (int64_t)(5 * tau * 1e9);        /* chauffe de la moyenne */
+    int64_t warm = (int64_t)(5 * tau * 1e9);
     int64_t t0 = b.n ? b.s[0].ts : 0, t1 = t0;
     double  ref_prev = 0;
 
@@ -123,20 +107,19 @@ int main(int argc, char **argv)
         t1 = c.ts;
         double sm = sma_push(&sma, c.ts, c.mid);
         double ref_now = use_sma ? sm : c.ema.v;
-        double ref = ref_prev;                      /* <- precaution n.2 */
+        double ref = ref_prev;
         ref_prev = ref_now;
         if (c.ts - t0 < warm || ref <= 0) continue;
 
         for (int j = 0; j < nd; j++) {
-            /* ---- cote achat : ordre a ref*(1-D) ---- */
             Track *t = &buy[j];
             double lvl = ref * (1.0 - t->d);
             if (!t->open) {
-                if (c.ask <= lvl) {                 /* trade-through */
+                if (c.ask <= lvl) {
                     t->open = 1; t->t0 = c.ts; t->px0 = lvl; t->mae = t->mfe = 0;
                 }
             } else {
-                double pnl = (c.mid - t->px0) / t->px0 * 1e4;   /* en bps */
+                double pnl = (c.mid - t->px0) / t->px0 * 1e4;
                 if (pnl < t->mae) t->mae = pnl;
                 if (pnl > t->mfe) t->mfe = pnl;
                 if (c.mid >= ref)
@@ -147,7 +130,6 @@ int main(int argc, char **argv)
                     close_ep(t, c.ts, pnl, 2, dump, 1);
             }
 
-            /* ---- cote vente : ordre a ref*(1+D) ---- */
             t = &sell[j];
             lvl = ref * (1.0 + t->d);
             if (!t->open) {

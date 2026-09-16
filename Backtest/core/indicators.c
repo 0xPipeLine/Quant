@@ -2,7 +2,6 @@
  *
  * Tout est indexe sur le TEMPS, pas sur le nombre de snapshots : les carnets
  * n'arrivent pas a intervalle regulier (~1,35 s en moyenne, avec des trous).
- * Une EMA "sur N points" sauterait d'un coup apres une interruption.
  */
 #include <stdlib.h>
 #include <string.h>
@@ -13,7 +12,7 @@ double ema_push(Ema *e, double x, double dt)
 {
     if (!e->init) { e->v = x; e->init = 1; return e->v; }
     if (dt < 0) dt = 0;
-    e->v += (1.0 - exp(-dt / e->tau)) * (x - e->v);   /* alpha depend de dt */
+    e->v += (1.0 - exp(-dt / e->tau)) * (x - e->v);
     return e->v;
 }
 
@@ -31,13 +30,13 @@ void sma_free(Sma *s) { free(s->v); free(s->t); s->v = NULL; s->t = NULL; }
 
 double sma_push(Sma *s, int64_t ts, double x)
 {
-    if (s->count == s->cap) {                        /* ring plein */
+    if (s->count == s->cap) {
         int tail = (s->head - s->count + s->cap) % s->cap;
         s->sum -= s->v[tail]; s->count--;
     }
     s->v[s->head] = x; s->t[s->head] = ts;
     s->sum += x; s->head = (s->head + 1) % s->cap; s->count++;
-    while (s->count > 1) {                           /* sortie de fenetre */
+    while (s->count > 1) {
         int tail = (s->head - s->count + s->cap) % s->cap;
         if (ts - s->t[tail] <= s->win) break;
         s->sum -= s->v[tail]; s->count--;
@@ -50,16 +49,11 @@ void ctx_init(Ctx *c, double ema_tau, double vol_tau)
     memset(c, 0, sizeof *c);
     c->ema.tau = ema_tau;
     c->var.tau = vol_tau;
-    c->tf = 0.0;                       /* mode continu */
+    c->tf = 0.0;
 }
 
-/* Constante de temps equivalente a un EMA de fenetre N sur des bougies de
- * duree T. On egalise les deux coefficients sur un pas de duree T :
- *
- *      1 - exp(-T/tau) = alpha        ->      tau = -T / ln(1 - alpha)
- *
- * avec alpha = 2/(N+1) (span) ou 1/N (Wilder).
- * Exemple : N=5 sur du 5 min  ->  tau = 740 s, pas 300 s. */
+/* tau equivalent a un EMA de fenetre N sur des bougies de duree T :
+ *      1 - exp(-T/tau) = alpha   ->   tau = -T / ln(1 - alpha)            */
 double ema_tau_of(double tf, int window, int wilder)
 {
     if (window <= 1 || tf <= 0) return tf > 0 ? tf : 1.0;
@@ -76,7 +70,7 @@ void ctx_init_candle(Ctx *c, double tf, int window, int wilder, int blend,
     c->blend   = blend;
     c->alpha_c = (window <= 1) ? 1.0
                : (wilder ? 1.0 / window : 2.0 / (window + 1.0));
-    c->ema.tau = ema_tau_of(tf, window, wilder);   /* pour information */
+    c->ema.tau = ema_tau_of(tf, window, wilder);
 }
 
 void ctx_update(Ctx *c, const Snap *s)
@@ -93,20 +87,16 @@ void ctx_update(Ctx *c, const Snap *s)
     c->spread = c->ask - c->bid;
 
     double bs = s->bid_sz[0], as = s->ask_sz[0];
-    /* microprix : le mid pondere par les tailles au touch. Meilleur
-     * predicteur du prochain mid que le mid lui-meme. */
     c->micro = (bs + as > 0) ? (c->bid * as + c->ask * bs) / (bs + as) : c->mid;
     c->imb   = (bs + as > 0) ? (bs - as) / (bs + as) : 0.0;
 
     if (c->tf > 0) {
         int64_t b = c->ts / (int64_t)(c->tf * 1e9);
         if (!c->ema.init) { c->ema_store = c->mid; c->ema.init = 1; c->bucket = b; }
-        else if (b != c->bucket) {     /* un pas de timeframe vient de passer */
-            /* comme MarketHL.run() : on incorpore le mid de l'instant */
+        else if (b != c->bucket) {
             c->ema_store += c->alpha_c * (c->mid - c->ema_store);
             c->bucket = b;
         }
-        /* comme MarketHL.ema_close() : la valeur lue melange le mid courant */
         c->ema.v = c->blend
                  ? c->alpha_c * c->mid + (1 - c->alpha_c) * c->ema_store
                  : c->ema_store;
@@ -117,12 +107,11 @@ void ctx_update(Ctx *c, const Snap *s)
     if (c->i && c->dt > 0 && prev > 0) {
         double r = log(c->mid / prev);
         double v = ema_push(&c->var, r * r / c->dt, c->dt);
-        c->vol = sqrt(v > 0 ? v : 0);                /* ecart-type par sqrt(s) */
+        c->vol = sqrt(v > 0 ? v : 0);
     }
     c->i++;
 }
 
-/* Applique un EmaCfg a un Ctx : un seul endroit ou le choix est fait. */
 void ema_cfg_apply(Ctx *c, const EmaCfg *e, double vol_tau)
 {
     if (e->tf > 0) ctx_init_candle(c, e->tf, e->window, e->wilder, e->blend, vol_tau);
