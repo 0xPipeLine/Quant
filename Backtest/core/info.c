@@ -1,7 +1,7 @@
 /* info.c — inspection d'un fichier .l2. A lancer en premier quand quelque
  * chose ne va pas : dit ce que le moteur voit reellement du fichier.
  *
- *   bin/info data/extracted/mkts-US500.l2 [--gaps 20] [--from B] [--to B]
+ *   bin/info data/extracted/xyz-XYZ100.l2 [--gaps 20] [--from B] [--to B]
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -20,10 +20,11 @@ int main(int argc, char **argv)
 {
     setvbuf(stdout, NULL, _IONBF, 0);
     setvbuf(stderr, NULL, _IONBF, 0);
-    if (argc < 2) { fprintf(stderr, "usage: %s book.l2 [--gaps N]\n", argv[0]); return 1; }
+    const char *path = L2_DEFAULT; int first = 1;
+    if (argc >= 2 && strncmp(argv[1], "--", 2)) { path = argv[1]; first = 2; }
     int top = 10;
     const char *from = NULL, *to = NULL;
-    for (int i = 2; i < argc; i++) {
+    for (int i = first; i < argc; i++) {
         const char *a = argv[i], *v = (i + 1 < argc) ? argv[i + 1] : NULL;
         if      (!strcmp(a, "--gaps") && v) top  = atoi(argv[++i]);
         else if (!strcmp(a, "--from") && v) from = argv[++i];
@@ -36,7 +37,7 @@ int main(int argc, char **argv)
            (unsigned long)sizeof(Snap), LEVELS);
 
     Book b;
-    if (book_open_range(&b, argv[1], from, to)) return 1;
+    if (book_open_range(&b, path, from, to)) return 1;
 
     char d0[24], d1[24];
     l2_fmt_time(b.s[0].ts, d0, sizeof d0);

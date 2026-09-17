@@ -21,6 +21,9 @@
 #  warning "Binaire 32 bits : un .l2 de plus de ~1 Go ne pourra pas etre mappe. Installe mingw-w64 x86_64 (voir README)."
 #endif
 
+/* fichier utilise par backtest/info/probas quand aucun n'est donne */
+#define L2_DEFAULT "data/extracted/xyz-XYZ100.l2"
+
 #define LEVELS 20        /* profondeur du carnet conservee, par cote */
 #define MAXQ   64        /* nb max d'ordres par cote pour une strategie */
 #define MAXREST (2 * MAXQ)
@@ -29,7 +32,7 @@
  *
  *   [ L2Header : 64 octets ][ Snap #0 : 656 o ][ Snap #1 ] ... [ Snap #N-1 ]
  *
- * Ecrit par bin/extract, relisible en Python en deux lignes (voir README).
+ * Ecrit par bin/extract dans data/extracted/, relisible en Python (voir README).
  */
 
 typedef struct {                    /* 64 octets exactement */

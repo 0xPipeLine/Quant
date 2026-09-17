@@ -19,6 +19,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "strategy.h"
+#include "volband.h"
 
 typedef struct {
     int    levels, inv;
@@ -65,8 +66,9 @@ static int quotes(void *st, const Ctx *c, const Portfolio *pf,
 static Strat create(void)
 {
     VolBand *b = calloc(1, sizeof *b);
-    b->levels = 12; b->inv = 1; b->k1 = 0.5; b->k2 = 3.0; b->horizon = 300.0;
-    b->value = 50.0; b->cap = 0.85; b->min_value = 10.5; b->min_band = 2.0;
+    b->levels = VOLBAND_LEVELS; b->inv = VOLBAND_INV; b->k1 = VOLBAND_K1;
+    b->k2 = VOLBAND_K2; b->horizon = VOLBAND_HORIZON; b->value = VOLBAND_VALUE;
+    b->cap = VOLBAND_CAP; b->min_value = VOLBAND_MIN_VALUE; b->min_band = VOLBAND_MIN_BAND;
     Strat s = { "volband", b, quotes };
     return s;
 }

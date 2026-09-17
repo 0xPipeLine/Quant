@@ -11,6 +11,8 @@
 CC      ?= gcc
 CFLAGS  ?= -O2 -std=gnu11 -Wall -Wextra -Wno-unused-parameter
 CFLAGS  += -Icore -Istrategies
+STRAT_DIRS := $(sort $(dir $(wildcard strategies/*/*.c)))
+CFLAGS  += $(addprefix -I,$(STRAT_DIRS))
 LDLIBS   = -lm
 
 ifeq ($(DEBUG),1)
@@ -55,7 +57,7 @@ $(BIN)/probas$(EXE): $(BUILD)/core/probabilities.o $(BUILD)/core/book.o $(BUILD)
 $(BIN)/extract$(EXE): $(BUILD)/core/extract.o | $(BIN)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDLIBS) -lz
 
-$(BUILD)/%.o: %.c core/l2.h strategies/strategy.h
+$(BUILD)/%.o: %.c core/l2.h strategies/strategy.h $(wildcard strategies/*/*.h)
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -c -o $@ $<
 

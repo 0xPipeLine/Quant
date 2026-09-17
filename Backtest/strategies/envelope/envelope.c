@@ -19,6 +19,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "strategy.h"
+#include "envelope.h"
 
 typedef struct {
     int    levels;
@@ -108,9 +109,10 @@ static int quotes(void *st, const Ctx *c, const Portfolio *pf,
 static Strat create(void)
 {
     EnvB *e = calloc(1, sizeof *e);
-    e->levels = 24; e->spread = 0.005; e->offset = 0.0001; e->alpha = 1.0;
-    e->skew = 2.0; e->cap = 0.85; e->min_value = 10.5; e->inv = 1;
-    e->tp = 0; e->tp_spread = 0.01;
+    e->levels = ENV_LEVELS; e->spread = ENV_SPREAD; e->offset = ENV_OFFSET;
+    e->alpha = ENV_ALPHA; e->skew = ENV_SKEW; e->cap = ENV_CAP;
+    e->min_value = ENV_MIN_VALUE; e->inv = ENV_INV;
+    e->tp = ENV_TP; e->tp_spread = ENV_TP_SPREAD;
     Strat s = { "envelope", e, quotes };
     return s;
 }

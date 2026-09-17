@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "strategy.h"
+#include "grid.h"
 
 typedef struct {
     int    levels;
@@ -57,8 +58,8 @@ static int quotes(void *st, const Ctx *c, const Portfolio *pf,
 static Strat create(void)
 {
     GridSt *g = calloc(1, sizeof *g);
-    g->levels = 24; g->value = 100.5; g->delta = 2.0; g->gap = 0.6;
-    g->cap = 0.80; g->min_value = 10.5;
+    g->levels = GRID_LEVELS; g->value = GRID_VALUE; g->delta = GRID_DELTA;
+    g->gap = GRID_GAP; g->cap = GRID_CAP; g->min_value = GRID_MIN_VALUE;
     Strat s = { "grid", g, quotes };
     return s;
 }

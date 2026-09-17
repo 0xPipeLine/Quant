@@ -1,6 +1,9 @@
 /* extract.c — *.json.gz  ->  book.l2
  *
- *   bin/extract data/raw/mkts-US500 data/extracted/mkts-mkts-US500.l2 [--jobs N] [--market NOM]
+ *   bin/extract data/raw/XYZ100 data/extracted/xyz-XYZ100.l2 [--jobs N] [--market NOM]
+ *
+ * `market` est une simple etiquette ecrite dans l'en-tete (relue par bin/info).
+ * Par defaut : le nom du fichier de sortie sans extension.
  *
  * Pourquoi c'est rapide :
  *   - parseur JSON dedie au schema ;
@@ -246,7 +249,7 @@ int main(int argc, char **argv)
                 argv[0]);
         return 1;
     }
-    const char *root = argv[1], *out_path = argv[2], *market = "mkts:mkts-US500";
+    const char *root = argv[1], *out_path = argv[2], *market = NULL;
     int jobs = 0;
     for (int i = 3; i < argc; i++) {
         if      (!strcmp(argv[i], "--jobs")   && i + 1 < argc) jobs = atoi(argv[++i]);
@@ -375,7 +378,17 @@ int main(int argc, char **argv)
     h.n_rec    = n_rec;
     h.t_start  = t_start;
     h.t_end    = t_end;
-    strncpy(h.market, market, sizeof h.market - 1);
+    char label[24] = { 0 };
+    if (!market) {                       /* basename sans extension */
+        const char *b = out_path;
+        for (const char *q = out_path; *q; q++) if (*q == '/' || *q == '\\') b = q + 1;
+        size_t L = strlen(b);
+        if (L > 3 && !strcmp(b + L - 3, ".l2")) L -= 3;
+        if (L > sizeof label - 1) L = sizeof label - 1;
+        memcpy(label, b, L);
+        market = label;
+    }
+    snprintf(h.market, sizeof h.market, "%s", market);
     fflush(out);
     fseek(out, 0, SEEK_SET);
     fwrite(&h, sizeof h, 1, out);

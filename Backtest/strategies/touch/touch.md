@@ -21,16 +21,20 @@ que le moteur la rappelle à chaque `--poll` même si l'EMA n'a pas bougé. Le
 modèle `--fill through` est essentiel ici ; `touch` donnerait des fills à
 chaque snapshot.
 
+Les valeurs par défaut sont dans `touch.h` ; toute option de la ligne de
+commande les surcharge.
+
 ## Commande complète
 
 ```sh
-bin/backtest data/extracted/mkts-US500.l2 --strategy touch --reverse 0 \
+bin/backtest data/extracted/xyz-XYZ100.l2 --strategy touch \
     --layers 3 --tick 0.1 --value 50 --cap 0.90 --min-value 10.5 \
-    --max-inv 0.5 --lean 0 \
-    --tau 300 --poll 10.1 --threshold 0 --fill through \
-    --maker 0.00003 --taker 0.00009 --lev 1 --initial 1000 \
-    --from 2026-08-21 --to -1d
+    --max-inv 0.5 --lean 0
 ```
+
+Les paramètres généraux (fichier, `--reverse`, frais, levier, `--poll`,
+`--threshold`, `--from/--to`, etc.) ne sont pas listés ici : leurs défauts sont
+dans `core/parameters.h` et `bin/backtest --help` les énumère.
 
 ## Paramètres
 
@@ -43,3 +47,5 @@ bin/backtest data/extracted/mkts-US500.l2 --strategy touch --reverse 0 \
 | `--min-value $` | 10.5 | notionnel minimum d'un ordre |
 | `--max-inv F` | 0.5 | inventaire max, en fraction du capital, avant de ne coter que le côté qui réduit |
 | `--lean F` | 0 | décalage des prix en fraction du mid par unité d'inventaire (ex. 0.0005) |
+
+**Lancer avec `--threshold 0`** : la stratégie doit suivre le touch à chaque poll, pas seulement quand l'EMA bouge (`--threshold` est un paramètre général, voir `core/parameters.h`).

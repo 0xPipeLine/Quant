@@ -17,6 +17,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "strategy.h"
+#include "dumb.h"
 
 typedef struct { double gamma, cap, min_value; } Dumb;
 
@@ -60,7 +61,7 @@ static int quotes(void *st, const Ctx *c, const Portfolio *pf,
 static Strat create(void)
 {
     Dumb *d = calloc(1, sizeof *d);
-    d->gamma = 2.0; d->cap = 0.90; d->min_value = 10.5;
+    d->gamma = DUMB_GAMMA; d->cap = DUMB_CAP; d->min_value = DUMB_MIN_VALUE;
     Strat s = { "dumb", d, quotes };
     return s;
 }

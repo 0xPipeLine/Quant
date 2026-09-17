@@ -26,6 +26,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "strategy.h"
+#include "stoikov.h"
 
 typedef struct {
     double gamma, k, horizon, value, cap, min_value, min_spread, max_spread;
@@ -72,9 +73,10 @@ static int quotes(void *st, const Ctx *c, const Portfolio *pf,
 static Strat create(void)
 {
     Stoikov *s = calloc(1, sizeof *s);
-    s->gamma = 100.0; s->k = 1000.0; s->horizon = 300.0; s->value = 50.0;
-    s->cap = 0.90; s->min_value = 10.5; s->min_spread = 2.0; s->max_spread = 30.0;
-    s->layers = 2; s->step = 1.0;
+    s->gamma = STOIKOV_GAMMA; s->k = STOIKOV_K; s->horizon = STOIKOV_HORIZON;
+    s->value = STOIKOV_VALUE; s->cap = STOIKOV_CAP; s->min_value = STOIKOV_MIN_VALUE;
+    s->min_spread = STOIKOV_MIN_SPREAD; s->max_spread = STOIKOV_MAX_SPREAD;
+    s->layers = STOIKOV_LAYERS; s->step = STOIKOV_STEP;
     Strat st = { "stoikov", s, quotes };
     return st;
 }

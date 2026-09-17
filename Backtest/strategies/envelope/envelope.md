@@ -21,16 +21,21 @@ l'ordre de TP et l'échelle ne reçoit que `power`. L'exposition maximale est
 inchangée ; on décide seulement où se place la partie qui solde. Sans ce
 partage, TP et échelle vendraient la même position et on serait short du double.
 
+Les valeurs par défaut sont dans `envelope.h` ; toute option de la ligne de
+commande les surcharge.
+
 ## Commande complète
 
 ```sh
-bin/backtest data/extracted/mkts-US500.l2 --strategy envelope --reverse 0 \
+bin/backtest data/extracted/xyz-XYZ100.l2 --strategy envelope \
     --levels 24 --spread 0.005 --offset 0.0001 --alpha 1 --skew 2 \
     --cap 0.85 --min-value 10.5 --inv 1 --tp 0 --tp-spread 0.01 \
-    --tau 300 --poll 10.1 --threshold 0.0001 --fill through \
-    --maker 0.00003 --taker 0.00009 --lev 1 --initial 1000 \
-    --from 2026-08-21 --to -1d --equity equity.csv
+    --tau 300
 ```
+
+Les paramètres généraux (fichier, `--reverse`, frais, levier, `--poll`,
+`--threshold`, `--from/--to`, etc.) ne sont pas listés ici : leurs défauts sont
+dans `core/parameters.h` et `bin/backtest --help` les énumère.
 
 ## Paramètres
 
@@ -47,7 +52,17 @@ bin/backtest data/extracted/mkts-US500.l2 --strategy envelope --reverse 0 \
 | `--tp 0\|1` | 0 | 1 = poser un take profit de la taille de la position |
 | `--tp-spread F` | 0.01 | distance du TP au prix d'entrée, en fraction (0.01 = 1 %) |
 
-En `--reverse 1` (moteur), chaque fill de l'échelle devient un taker inverse ;
-la stratégie voit la position miroir, donc son TP "vend" une position qu'elle
-croit longue et le moteur exécute un achat taker qui réduit le short réel.
-Retour à la moyenne → momentum, logique inchangée.
+## Moyenne de référence
+
+L'EMA est le centre de l'échelle. Deux modes exclusifs (le dernier parsé gagne) :
+
+| option | défaut | rôle |
+|---|---|---|
+| `--tau S` | 300 | EMA continue, constante de temps en secondes |
+| `--timeframe S` | 0 (off) | EMA "bougie" comme `MarketHL` : durée d'une bougie en secondes |
+| `--window N` | 5 | EMA bougie : fenêtre N (alpha = 2/(N+1)) |
+| `--wilder` | off | EMA bougie : alpha = 1/N (RMA / SMMA) |
+| `--staircase` | off | EMA bougie : valeur en escalier, sans mélange au mid courant |
+
+Variante bougie de la commande : remplacer `--tau 300` par
+`--timeframe 300 --window 5 [--wilder] [--staircase]`.

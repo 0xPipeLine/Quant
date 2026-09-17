@@ -12,7 +12,7 @@
  *      PRECEDENT, le fill est teste sur le snapshot courant ;
  *   3. les episodes non resolus a l'horizon sont comptes (p_timeout).
  *
- *   bin/probas data/extracted/mkts-US500.l2 --tau 300 --nd 40 --dmin 0.0002 --dmax 0.01 \
+ *   bin/probas data/extracted/xyz-XYZ100.l2 --tau 300 --nd 40 --dmin 0.0002 --dmax 0.01 \
  *              --horizon 3600 --out study.csv [--dump episodes.csv] [--sma]
  */
 #include <stdio.h>
@@ -20,6 +20,7 @@
 #include <string.h>
 #include <math.h>
 #include "l2.h"
+#include "parameters.h"
 
 typedef struct {
     double  d;
@@ -48,14 +49,16 @@ int main(int argc, char **argv)
     setvbuf(stdout, NULL, _IONBF, 0);
     setvbuf(stderr, NULL, _IONBF, 0);
 
-    if (argc < 2) { fprintf(stderr, "usage: %s book.l2 [options]\n", argv[0]); return 1; }
+    const char *path = L2_DEFAULT; int first = 1;
+    if (argc >= 2 && strncmp(argv[1], "--", 2)) { path = argv[1]; first = 2; }
 
-    EmaCfg ema = { .tau = 300.0, .tf = 0.0, .window = 5, .wilder = 0, .blend = 1 };
+    EmaCfg ema = { .tau = DEF_EMA_TAU, .tf = DEF_EMA_TF, .window = DEF_EMA_WINDOW,
+                   .wilder = DEF_EMA_WILDER, .blend = DEF_EMA_BLEND };
     double dmin = 0.0002, dmax = 0.01, horizon = 3600, stop = 0;
     int nd = 40, use_sma = 0;
     const char *out = "study.csv", *dumpf = NULL, *from = NULL, *to = NULL;
 
-    for (int i = 2; i < argc; i++) {
+    for (int i = first; i < argc; i++) {
         const char *a = argv[i], *v = (i + 1 < argc) ? argv[i + 1] : NULL;
         if      (!strcmp(a, "--tau")     && v) { ema.tau = atof(argv[++i]); ema.tf = 0; }
         else if (!strcmp(a, "--timeframe") && v) ema.tf     = atof(argv[++i]);
@@ -76,14 +79,14 @@ int main(int argc, char **argv)
     }
 
     Book b;
-    if (book_open_range(&b, argv[1], from, to)) return 1;
+    if (book_open_range(&b, path, from, to)) return 1;
     { char d0[24], d1[24];
       l2_fmt_time(b.s[0].ts, d0, sizeof d0);
       l2_fmt_time(b.s[b.n - 1].ts, d1, sizeof d1);
       fprintf(stderr, "zone           : %s -> %s  (%lu snapshots)\n",
               d0, d1, (unsigned long)b.n); }
 
-    Ctx c; ema_cfg_apply(&c, &ema, 60.0);
+    Ctx c; ema_cfg_apply(&c, &ema, DEF_VOL_TAU);
     ema_cfg_print(&ema, stderr);
     double tau = c.ema.tau;
     Sma sma; sma_init(&sma, 1 << 20, tau);

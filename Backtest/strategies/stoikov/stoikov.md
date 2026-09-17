@@ -24,16 +24,20 @@ Contrairement à l'enveloppe, aucun pari sur un retour à une moyenne : le
 spread se serre, l'inventaire pilote les prix. Volume élevé, inventaire bas,
 très sensible à `gamma`.
 
+Les valeurs par défaut sont dans `stoikov.h` ; toute option de la ligne de
+commande les surcharge.
+
 ## Commande complète
 
 ```sh
-bin/backtest data/extracted/mkts-US500.l2 --strategy stoikov --reverse 0 \
+bin/backtest data/extracted/xyz-XYZ100.l2 --strategy stoikov \
     --gamma 100 --k 1000 --horizon 300 --value 50 --layers 2 --step 1 \
-    --min-spread 2 --max-spread 30 --cap 0.90 --min-value 10.5 \
-    --tau 300 --poll 10.1 --threshold 0.0001 --fill through \
-    --maker 0.00003 --taker 0.00009 --lev 1 --initial 1000 \
-    --from 2026-08-21 --to -1d
+    --min-spread 2 --max-spread 30 --cap 0.90 --min-value 10.5
 ```
+
+Les paramètres généraux (fichier, `--reverse`, frais, levier, `--poll`,
+`--threshold`, `--from/--to`, etc.) ne sont pas listés ici : leurs défauts sont
+dans `core/parameters.h` et `bin/backtest --help` les énumère.
 
 ## Paramètres
 
@@ -50,5 +54,4 @@ bin/backtest data/extracted/mkts-US500.l2 --strategy stoikov --reverse 0 \
 | `--cap F` | 0.90 | fraction max du portefeuille engagée par côté |
 | `--min-value $` | 10.5 | notionnel minimum d'un ordre |
 
-Réglage : commencer par `--k` pour obtenir le demi-spread voulu au repos
-(`ln(1+gamma/k)/gamma`), puis `--gamma` pour la force du recentrage.
+La vol `σ` vient du moteur (EWMA des `r²/dt`, τ = `DEF_VOL_TAU` = 60 s dans `core/parameters.h`) ; il n'y a pas d'option en ligne de commande pour elle.

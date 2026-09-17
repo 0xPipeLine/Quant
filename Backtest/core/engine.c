@@ -32,6 +32,7 @@
 #include <string.h>
 #include <math.h>
 #include "l2.h"
+#include "parameters.h"
 
 typedef struct { Quote q; int64_t active; } Rest;   /* ordre pose */
 
@@ -75,7 +76,7 @@ Result engine_run(const Book *b, Strat *st, const Cfg *cfg, const EmaCfg *ecfg)
     pf->maker_fee = cfg->maker_fee;
     pf->taker_fee = cfg->taker_fee;
 
-    Ctx c; ema_cfg_apply(&c, ecfg, 60.0);
+    Ctx c; ema_cfg_apply(&c, ecfg, DEF_VOL_TAU);
     Rest  rest[MAXREST]; int n_rest = 0;
     Quote restq[MAXREST];                /* vue "Quote" de rest[], pour la strat */
     Quote want[MAXREST];

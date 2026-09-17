@@ -19,6 +19,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "strategy.h"
+#include "touch.h"
 
 typedef struct {
     int    layers;
@@ -65,8 +66,9 @@ static int quotes(void *st, const Ctx *c, const Portfolio *pf,
 static Strat create(void)
 {
     Touch *t = calloc(1, sizeof *t);
-    t->layers = 3; t->tick = 0.1; t->value = 50.0; t->cap = 0.90;
-    t->min_value = 10.5; t->max_inv = 0.5; t->lean = 0.0;
+    t->layers = TOUCH_LAYERS; t->tick = TOUCH_TICK; t->value = TOUCH_VALUE;
+    t->cap = TOUCH_CAP; t->min_value = TOUCH_MIN_VALUE; t->max_inv = TOUCH_MAX_INV;
+    t->lean = TOUCH_LEAN;
     Strat s = { "touch", t, quotes };
     return s;
 }

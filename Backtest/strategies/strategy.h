@@ -1,7 +1,7 @@
 /* strategy.h — registre des strategies et helpers communs.
  *
  * Chaque strategie est un dossier strategies/<nom>/ contenant <nom>.c (qui
- * expose un StratDef) et <nom>.md (sa fiche).
+ * expose un StratDef), <nom>.h (ses valeurs par defaut) et <nom>.md (sa fiche).
  * backtest.c ne connait AUCUNE strategie en particulier : il selectionne un
  * StratDef par son nom, lui delegue le parsing de ses propres options, puis
  * confie le Strat au moteur.

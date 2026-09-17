@@ -13,16 +13,20 @@ Différence assumée avec le bot : il ajoute une paire toutes les 10 s et
 remplit la grille progressivement ; ici tous les niveaux autorisés sont posés
 d'un coup. Le régime permanent est le même.
 
+Les valeurs par défaut sont dans `grid.h` ; toute option de la ligne de
+commande les surcharge.
+
 ## Commande complète
 
 ```sh
-bin/backtest data/extracted/mkts-US500.l2 --strategy grid --reverse 0 \
+bin/backtest data/extracted/xyz-XYZ100.l2 --strategy grid \
     --levels 24 --value 100.5 --delta 2.0 --gap 0.6 \
-    --cap 0.80 --min-value 10.5 \
-    --tau 300 --poll 10.1 --threshold 0.0001 --fill through \
-    --maker 0.00003 --taker 0.00009 --lev 1 --initial 1000 \
-    --from 2026-08-21 --to -1d
+    --cap 0.80 --min-value 10.5
 ```
+
+Les paramètres généraux (fichier, `--reverse`, frais, levier, `--poll`,
+`--threshold`, `--from/--to`, etc.) ne sont pas listés ici : leurs défauts sont
+dans `core/parameters.h` et `bin/backtest --help` les énumère.
 
 ## Paramètres
 
@@ -34,6 +38,3 @@ bin/backtest data/extracted/mkts-US500.l2 --strategy grid --reverse 0 \
 | `--gap P` | 0.6 | écart bid/ask au centre de la grille, en unités de prix |
 | `--cap F` | 0.80 | fraction max du portefeuille engagée par côté |
 | `--min-value $` | 10.5 | notionnel minimum d'un ordre |
-
-L'EMA (`--tau`) n'est pas utilisée par cette stratégie mais reste le
-déclencheur des re-quotes du moteur (`--threshold`).

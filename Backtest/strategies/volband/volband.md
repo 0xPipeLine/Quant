@@ -20,16 +20,21 @@ par la capacité, ce qui limite l'inventaire sans skew. `min-band` évite une
 échelle collée au mid quand la vol s'effondre. `inv 1` : comme l'enveloppe,
 seul le côté du retour à la moyenne est coté.
 
+Les valeurs par défaut sont dans `volband.h` ; toute option de la ligne de
+commande les surcharge.
+
 ## Commande complète
 
 ```sh
-bin/backtest data/extracted/mkts-US500.l2 --strategy volband --reverse 0 \
+bin/backtest data/extracted/xyz-XYZ100.l2 --strategy volband \
     --levels 12 --k1 0.5 --k2 3.0 --horizon 300 --value 50 --min-band 2 \
     --cap 0.85 --min-value 10.5 --inv 1 \
-    --tau 300 --poll 10.1 --threshold 0.0001 --fill through \
-    --maker 0.00003 --taker 0.00009 --lev 1 --initial 1000 \
-    --from 2026-08-21 --to -1d
+    --tau 300
 ```
+
+Les paramètres généraux (fichier, `--reverse`, frais, levier, `--poll`,
+`--threshold`, `--from/--to`, etc.) ne sont pas listés ici : leurs défauts sont
+dans `core/parameters.h` et `bin/backtest --help` les énumère.
 
 ## Paramètres
 
@@ -45,5 +50,19 @@ bin/backtest data/extracted/mkts-US500.l2 --strategy volband --reverse 0 \
 | `--min-value $` | 10.5 | notionnel minimum d'un ordre |
 | `--inv 0\|1` | 1 | 1 = ne coter que le côté du retour à la moyenne |
 
-La vol du moteur est une EWMA de τ = 60 s des `r²/dt` : elle réagit en une
-minute environ.
+## Moyenne de référence
+
+L'EMA est le centre de l'échelle. Deux modes exclusifs (le dernier parsé gagne) :
+
+| option | défaut | rôle |
+|---|---|---|
+| `--tau S` | 300 | EMA continue, constante de temps en secondes |
+| `--timeframe S` | 0 (off) | EMA "bougie" comme `MarketHL` : durée d'une bougie en secondes |
+| `--window N` | 5 | EMA bougie : fenêtre N (alpha = 2/(N+1)) |
+| `--wilder` | off | EMA bougie : alpha = 1/N (RMA / SMMA) |
+| `--staircase` | off | EMA bougie : valeur en escalier, sans mélange au mid courant |
+
+Variante bougie de la commande : remplacer `--tau 300` par
+`--timeframe 300 --window 5 [--wilder] [--staircase]`.
+
+La vol `σ` vient du moteur (EWMA des `r²/dt`, τ = `DEF_VOL_TAU` = 60 s dans `core/parameters.h`).

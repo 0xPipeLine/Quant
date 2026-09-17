@@ -1,7 +1,9 @@
 # core/ — le moteur
 
-Tout ce qui ne dépend d'aucune stratégie. Un seul header, `l2.h`, découpé
-en sept sections qui suivent l'ordre de ce document.
+Tout ce qui ne dépend d'aucune stratégie. Deux headers : `l2.h` (types et
+fonctions, sept sections qui suivent l'ordre de ce document) et
+`parameters.h` (défauts des paramètres généraux : frais, levier 20x, cadence,
+EMA, vol).
 
 ## 1. Format `.l2`
 
@@ -24,7 +26,7 @@ Lecture en Python :
 import numpy as np
 dt = np.dtype([('ts','<i8'),('height','<i8'),('bid_px','<f8',20),('bid_sz','<f8',20),
                ('ask_px','<f8',20),('ask_sz','<f8',20)])
-snaps = np.memmap('data/extracted/mkts-US500.l2', dtype=dt, mode='r', offset=64)
+snaps = np.memmap('data/extracted/xyz-XYZ100.l2', dtype=dt, mode='r', offset=64)
 ```
 
 ## 2. Lecture — `book.c`
